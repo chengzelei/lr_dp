@@ -9,6 +9,8 @@ ops.reset_default_graph()
 
 tf.flags.DEFINE_integer("batch_size", 25,
                         "The training batch size.")
+tf.flags.DEFINE_float("lr", 0.05, "learning rate")
+
 FLAGS = tf.flags.FLAGS
 
 
@@ -37,8 +39,9 @@ model_output = tf.add(tf.matmul(x_data, A), b)
 
 loss = tf.reduce_mean(tf.square(y_target - model_output))
 
+learning_rate=FLAGS.lr
 
-my_opt = tf.train.GradientDescentOptimizer(0.05)
+my_opt = tf.train.GradientDescentOptimizer(learning_rate)
 train_step = my_opt.minimize(loss)
 
 
