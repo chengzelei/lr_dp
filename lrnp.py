@@ -1,5 +1,9 @@
 import numpy as np
 import pylab
+import random
+
+
+
 
 def compute_error(b,m,data):
 
@@ -12,23 +16,27 @@ def compute_error(b,m,data):
 
     return totalError/float(len(data))
 
-def optimizer(data,starting_b,starting_m,learning_rate,num_iter, c):
+def optimizer(data,starting_b,starting_m,learning_rate,num_iter, c, eps, delta):
     b = starting_b
     m = starting_m
+
+    prev_grad=0
 
     #gradient descent
     for i in range(num_iter):
         #update b and m with the new more accurate b and m by performing
         # thie gradient step
-        b,m =compute_gradient(b,m,data,learning_rate, c)
+        b,m =compute_gradient(b,m,data,learning_rate, c, eps, delta)
         if i%100==0:
             print 'iter {0}:error={1}'.format(i,compute_error(b,m,data))
     return [b,m]
 
-def compute_gradient(b_current,m_current,data ,learning_rate, c):
+def compute_gradient(b_current,m_current,data ,learning_rate, c, eps, delta):
 
-    b_gradient = 0
-    m_gradient = 0
+    bg = 0
+    mg = 0
+
+    mu=0
 
     N = float(len(data))
     #Two ways to implement this
@@ -41,9 +49,29 @@ def compute_gradient(b_current,m_current,data ,learning_rate, c):
         b_gtmp= -2*(y-((m_current*x)+b_current))
         m_gtmp= -2 * x * (y-((m_current*x)+b_current))
 
-        b_gradient += -(2/N)*(y-((m_current*x)+b_current))
-        print b_gradient
-        m_gradient += -(2/N) * x * (y-((m_current*x)+b_current))
+        #b_gradient += -(2/N)*(y-((m_current*x)+b_current))
+       #print b_gradient
+       # m_gradient += -(2/N) * x * (y-((m_current*x)+b_current))
+        
+        w_norm= np.sqrt(np.power(m_gtmp,2)+np.power(b_gtmp,2))
+        print w_norm
+
+        if w_norm<=c:
+            mg+=m_gtmp
+            bg+=b_gtmp
+        else:
+            mg+=m_gtmp*c/w_norm
+            bg+=b_gtmp*c/w_norm
+
+    sensitivity=2*c/N
+
+    sigma=np.sqrt(2*np.log(1.25/delta))*sensitivity/eps
+
+    noise=random.gauss(mu,sigma)
+
+    b_gradient=1/N*(bg+noise)
+    m_gradient=1/N*(mg+noise)
+
 
     #Vectorization implementation
     #x = data[:,0]
@@ -89,9 +117,12 @@ def Linear_regression():
     learning_rate = 0.001
     initial_b =0.0
     initial_m = 0.0
-    num_iter = 1000
+    num_iter = 3000
 
     clipping_bound=1
+
+    eps=1
+    delta=0.001
 
     #train model
     #print b m error
@@ -99,7 +130,7 @@ def Linear_regression():
         .format(initial_b,initial_m,compute_error(initial_b,initial_m,data))
 
     #optimizing b and m
-    [b ,m] = optimizer(data,initial_b,initial_m,learning_rate,num_iter,clipping_bound)
+    [b ,m] = optimizer(data,initial_b,initial_m,learning_rate,num_iter,clipping_bound, eps, delta)
 
     #print final b m error
     print 'final formula parmaters:\n b = {1}\n m={2}\n error of end = {3} \n'.format(num_iter,b,m,compute_error(b,m,data))
