@@ -20,21 +20,38 @@ def optimizer(data,starting_b,starting_m,learning_rate,num_iter, c, eps, delta):
     b = starting_b
     m = starting_m
 
-    prev_grad=0
+    prev_grad_b_no_noise=0
+    prev_grad_b_noise=0
+    prev_grad_m_no_noise=0
+    prev_grad_m_noise=0
+    prev_m=0
+    prev_b=0
+
+    xmax=data[0,0]
+    for i in range(1,len(data)):
+        if data[i,0]>xmax:
+           xmax=data[i,0]
+
+
 
     #gradient descent
     for i in range(num_iter):
         #update b and m with the new more accurate b and m by performing
         # thie gradient step
-        b,m =compute_gradient(b,m,data,learning_rate, c, eps, delta)
-        if i%100==0:
-            print 'iter {0}:error={1}'.format(i,compute_error(b,m,data))
-    return [b,m]
+        b,m,prev_b,prev_m,prev_grad_b_no_noise,prev_grad_b_noise,prev_grad_m_no_noise,prev_grad_m_noise =compute_gradient(xmax,b,m,data,learning_rate, c, eps, delta, prev_grad_b_no_noise, prev_grad_b_noise, prev_grad_m_no_noise, prev_grad_m_noise, prev_m, prev_b, i)
+        if i%1000==0:
+            print 'iter {0}:error={1}'.format(i,compute_error(b,m/xmax,data))
+    return [b,m/xmax]
 
-def compute_gradient(b_current,m_current,data ,learning_rate, c, eps, delta):
+def compute_gradient(xmax,b_current,m_current,data ,learning_rate, c, eps, delta, prev_grad_b_no_noise, prev_grad_b_noise, prev_grad_m_no_noise, prev_grad_m_noise, prev_m, prev_b, iter_num):
 
     bg = 0
     mg = 0
+
+    b_no_noise=0
+    m_no_noise=0
+    b_grad_no_noise=0
+    m_grad_no_noise=0
 
     mu=0
 
@@ -42,8 +59,9 @@ def compute_gradient(b_current,m_current,data ,learning_rate, c, eps, delta):
     #Two ways to implement this
     #first way
     for i in range(0,len(data)):
-        x = data[i,0]
+        x = data[i,0]/xmax
         y = data[i,1]
+
     #
     #     #computing partial derivations of our error function
         b_gtmp= -2*(y-((m_current*x)+b_current))
@@ -67,10 +85,34 @@ def compute_gradient(b_current,m_current,data ,learning_rate, c, eps, delta):
 
     sigma=np.sqrt(2*np.log(1.25/delta))*sensitivity/eps
 
-    noise=random.gauss(mu,sigma)
+    
 
-    b_gradient=1/N*(bg+noise)
-    m_gradient=1/N*(mg+noise)
+    if iter_num==0:
+        reuse_coeff=0
+        print reuse_coeff
+
+        b_gradient=1/N*(bg+random.gauss(mu,sigma))
+        m_gradient=1/N*(mg+random.gauss(mu,sigma))
+        prev_b=0
+        prev_m=0
+        prev_grad_b_no_noise=1/N*bg
+        prev_grad_b_noise=b_gradient
+        prev_grad_m_no_noise=1/N*mg
+        prev_grad_m_noise=m_gradient
+
+    else:
+        reuse_coeff=1-np.sqrt(2)*(abs(m_current-prev_m)+abs(b_current-prev_b))/c
+        print reuse_coeff
+
+        sigma=np.sqrt((1-reuse_coeff)/(1+reuse_coeff))*sigma
+        b_gradient=1/N*bg+reuse_coeff*(prev_grad_b_noise-prev_grad_b_no_noise)+1/N*random.gauss(mu,(1-reuse_coeff)*sigma)
+        m_gradient=1/N*mg+reuse_coeff*(prev_grad_m_noise-prev_grad_m_no_noise)+1/N*random.gauss(mu,(1-reuse_coeff)*sigma)
+        prev_b=b_current
+        prev_m=m_current
+        prev_grad_b_no_noise=1/N*bg
+        prev_grad_b_noise=b_gradient
+        prev_grad_m_no_noise=1/N*mg
+        prev_grad_m_noise=m_gradient
 
 
     #Vectorization implementation
@@ -92,7 +134,7 @@ def compute_gradient(b_current,m_current,data ,learning_rate, c, eps, delta):
 
     new_b = b_current - (learning_rate * b_gradient)
     new_m = m_current - (learning_rate * m_gradient)
-    return [new_b,new_m]
+    return [new_b,new_m,prev_b,prev_m,prev_grad_b_no_noise,prev_grad_b_noise,prev_grad_m_no_noise,prev_grad_m_noise]
 
 
 def plot_data(data,b,m):
@@ -117,12 +159,12 @@ def Linear_regression():
     learning_rate = 0.001
     initial_b =0.0
     initial_m = 0.0
-    num_iter = 3000
+    num_iter = 1000
 
     clipping_bound=1
 
     eps=1
-    delta=0.001
+    delta=0.01
 
     #train model
     #print b m error
